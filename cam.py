@@ -5,7 +5,6 @@ from PIL import Image
 
 st.title("🎨 deteksi warna dominan")
 
-# pilih mode
 mode = st.radio("pilih mode input:", ["kamera", "upload foto"])
 
 def get_dominant_color(image):
@@ -20,18 +19,19 @@ def get_dominant_color(image):
     return tuple(dominant_color)
 
 if mode == "kamera":
-    try:
-        img_file = st.camera_input("ambil gambar dari kamera")
-        if img_file is not None:
-            img = Image.open(img_file)
-            st.image(img, caption="gambar yang diambil")
+    cam_choice = st.radio("pilih kamera:", ["default", "depan", "belakang"])
 
-            color = get_dominant_color(img)
-            st.write(f"warna dominan (BGR): {color}")
-            st.color_picker("preview", value="#%02x%02x%02x" % (color[2], color[1], color[0]))
-    except Exception as e:
-        st.warning("kamera tidak tersedia, silakan gunakan upload foto.")
+    # NOTE: st.camera_input belum support facingMode
+    # jadi "depan/belakang" ini lebih ke UI aja
+    img_file = st.camera_input("ambil gambar dari kamera")
 
+    if img_file is not None:
+        img = Image.open(img_file)
+        st.image(img, caption=f"gambar dari kamera {cam_choice}")
+
+        color = get_dominant_color(img)
+        st.write(f"warna dominan (BGR): {color}")
+        st.color_picker("preview", value="#%02x%02x%02x" % (color[2], color[1], color[0]))
 
 elif mode == "upload foto":
     uploaded_file = st.file_uploader("upload foto", type=["jpg", "jpeg", "png"])
