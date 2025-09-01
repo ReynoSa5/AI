@@ -82,91 +82,84 @@ def get_color_name(bgr_color):
 
 if mode == "Kamera Real-time":
     st.markdown("### 📹 Mode Kamera Real-time")
-    st.info("Aplikasi akan mendeteksi warna dominan dari area yang dipilih secara real-time")
+    st.success("🎯 Deteksi otomatis aktif! Arahkan kamera ke objek untuk mendeteksi warna secara langsung.")
     
     # Settings untuk deteksi
     col1, col2 = st.columns(2)
     with col1:
         box_size = st.slider("Ukuran Box Deteksi", 50, 200, 100)
     with col2:
-        update_interval = st.slider("Interval Update (detik)", 0.1, 2.0, 0.5)
+        detection_sensitivity = st.selectbox("Sensitivitas Deteksi", 
+                                           ["Tinggi (Update Cepat)", "Sedang", "Rendah (Update Lambat)"],
+                                           index=1)
     
-    # Placeholder untuk kamera dan hasil
-    camera_placeholder = st.empty()
-    result_placeholder = st.empty()
-    color_placeholder = st.empty()
+    # Konversi sensitivitas ke interval
+    sensitivity_map = {
+        "Tinggi (Update Cepat)": 0.1,
+        "Sedang": 0.3,
+        "Rendah (Update Lambat)": 0.8
+    }
+    update_interval = sensitivity_map[detection_sensitivity]
     
-    # Tombol kontrol
-    col1, col2 = st.columns(2)
-    with col1:
-        start_detection = st.button("🎯 Mulai Deteksi")
-    with col2:
-        stop_detection = st.button("⏹️ Stop Deteksi")
+    # Ambil gambar dari kamera - deteksi otomatis
+    img_file = st.camera_input("📸 Arahkan kamera ke objek yang ingin dideteksi warnanya")
     
-    # Session state untuk kontrol
-    if 'detection_active' not in st.session_state:
-        st.session_state.detection_active = False
-    
-    if start_detection:
-        st.session_state.detection_active = True
-    
-    if stop_detection:
-        st.session_state.detection_active = False
-    
-    if st.session_state.detection_active:
+    if img_file is not None:
         try:
-            # Ambil gambar dari kamera
-            img_file = st.camera_input("📸 Kamera", key="realtime_camera")
+            # Baca gambar
+            img = Image.open(img_file)
+            img_array = np.array(img)
             
-            if img_file is not None:
-                # Baca gambar
-                img = Image.open(img_file)
-                img_array = np.array(img)
-                
-                # Hitung posisi box di tengah gambar
-                height, width = img_array.shape[:2]
-                x = (width - box_size) // 2
-                y = (height - box_size) // 2
-                
-                # Pastikan box tidak keluar dari batas gambar
-                x = max(0, min(x, width - box_size))
-                y = max(0, min(y, height - box_size))
-                
-                # Ekstrak area dalam box
-                box_area = img_array[y:y+box_size, x:x+box_size]
-                
-                # Deteksi warna dominan dari area box
-                dominant_color_bgr = get_dominant_color(box_area)
-                color_name = get_color_name(dominant_color_bgr)
-                
-                # Gambar box deteksi pada gambar
-                img_with_box = draw_detection_box(img, x, y, box_size, box_size, 
-                                                dominant_color_bgr, color_name)
-                
-                # Tampilkan gambar dengan box
-                camera_placeholder.image(img_with_box, caption="Live Detection", use_column_width=True)
-                
-                # Tampilkan hasil deteksi
-                with result_placeholder.container():
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Warna Terdeteksi", color_name)
-                    with col2:
-                        st.metric("RGB", f"{dominant_color_bgr[2]}, {dominant_color_bgr[1]}, {dominant_color_bgr[0]}")
-                    with col3:
-                        st.metric("Hex", f"#{dominant_color_bgr[2]:02x}{dominant_color_bgr[1]:02x}{dominant_color_bgr[0]:02x}")
-                
-                # Preview warna
+            # Hitung posisi box di tengah gambar
+            height, width = img_array.shape[:2]
+            x = (width - box_size) // 2
+            y = (height - box_size) // 2
+            
+            # Pastikan box tidak keluar dari batas gambar
+            x = max(0, min(x, width - box_size))
+            y = max(0, min(y, height - box_size))
+            
+            # Ekstrak area dalam box
+            box_area = img_array[y:y+box_size, x:x+box_size]
+            
+            # Deteksi warna dominan dari area box
+            dominant_color_bgr = get_dominant_color(box_area)
+            color_name = get_color_name(dominant_color_bgr)
+            
+            # Gambar box deteksi pada gambar
+            img_with_box = draw_detection_box(img, x, y, box_size, box_size, 
+                                            dominant_color_bgr, color_name)
+            
+            # Tampilkan gambar dengan box
+            st.image(img_with_box, caption="🔴 LIVE: Deteksi Warna Otomatis", use_column_width=True)
+            
+            # Tampilkan hasil deteksi dengan styling yang menarik
+            st.markdown("### 📊 Hasil Deteksi Real-time")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("🎨 Warna Terdeteksi", color_name)
+            with col2:
+                st.metric("🔢 RGB", f"{dominant_color_bgr[2]}, {dominant_color_bgr[1]}, {dominant_color_bgr[0]}")
+            with col3:
                 hex_color = f"#{dominant_color_bgr[2]:02x}{dominant_color_bgr[1]:02x}{dominant_color_bgr[0]:02x}"
-                color_placeholder.color_picker("🎨 Preview Warna", value=hex_color, key=f"color_{time.time()}")
-                
-                # Auto refresh
-                time.sleep(update_interval)
-                st.rerun()
-                
+                st.metric("📝 Hex", hex_color.upper())
+            
+            # Preview warna besar
+            st.markdown("### 🎨 Preview Warna Terdeteksi")
+            st.color_picker("", value=hex_color, key=f"live_color_{int(time.time()*1000)}", disabled=True)
+            
+            # Status real-time
+            st.markdown(f"🔄 **Status:** Memperbarui setiap {update_interval} detik | ⏰ **Terakhir update:** {time.strftime('%H:%M:%S')}")
+            
+            # Auto refresh untuk deteksi berkelanjutan
+            time.sleep(update_interval)
+            st.rerun()
+            
         except Exception as e:
-            st.error(f"Error dalam deteksi real-time: {str(e)}")
-            st.warning("Pastikan kamera tersedia dan izin akses kamera telah diberikan.")
+            st.error(f"❌ Error dalam deteksi otomatis: {str(e)}")
+            st.warning("💡 Pastikan kamera tersedia dan izin akses kamera telah diberikan.")
+    else:
+        st.info("📸 Aktifkan kamera untuk memulai deteksi warna otomatis")
 
 elif mode == "Upload Foto":
     st.markdown("### 📁 Mode Upload Foto")
@@ -243,21 +236,24 @@ with st.sidebar:
     st.markdown("### ℹ️ Informasi Aplikasi")
     st.write("""
     **Fitur:**
-    - ✅ Deteksi real-time dari kamera
+    - ✅ Deteksi OTOMATIS tanpa button
+    - ✅ Real-time dari kamera
     - ✅ Upload dan analisis foto
     - ✅ Bounding box untuk area deteksi
     - ✅ Preview warna hasil
     - ✅ Nama warna dalam Bahasa Indonesia
     
     **Cara Penggunaan:**
-    1. Pilih mode (Kamera/Upload)
-    2. Untuk real-time: Klik 'Mulai Deteksi'
-    3. Untuk upload: Pilih foto dan klik 'Analisis'
+    1. Pilih mode "Kamera Real-time"
+    2. Aktifkan kamera
+    3. Arahkan ke objek - deteksi otomatis!
+    4. Untuk upload: Pilih foto dan klik 'Analisis'
     
     **Tips:**
-    - Pastikan pencahayaan yang baik
-    - Area deteksi sebaiknya tidak terlalu kecil
-    - Gunakan objek dengan warna yang kontras
+    - 💡 Pencahayaan yang baik = hasil lebih akurat
+    - 📐 Box hijau menunjukkan area deteksi
+    - 🎯 Arahkan area hijau ke objek target
+    - ⚡ Sensitivitas tinggi = update lebih cepat
     """)
     
     st.markdown("### 🎯 Pengaturan")
